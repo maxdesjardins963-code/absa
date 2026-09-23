@@ -4,12 +4,10 @@
   "description": "Bot Discord WestJet - panel de miles avec codes de redemption",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "deploy": "node deploy-commands.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5"
+    "discord.js": "^14.14.1"
   },
   "engines": {
     "node": ">=18.0.0"
