@@ -43,8 +43,17 @@ const {
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
+require("dotenv").config();
 
-const { TOKEN, STAFF_ROLE_ID } = require("./config.js");
+const TOKEN = process.env.TOKEN;
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
+
+if (!TOKEN || !STAFF_ROLE_ID) {
+  console.error(
+    "❌ Missing TOKEN or STAFF_ROLE_ID. Set them as environment variables (see .env.example)."
+  );
+  process.exit(1);
+}
 
 // ============== CHEMINS DE STOCKAGE ==============
 const DATA_DIR = path.join(__dirname, "data");
