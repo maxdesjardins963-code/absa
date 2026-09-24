@@ -1,30 +1,29 @@
 /**
  * ========================================================
  *   WESTJET MILES BOT - index.js (discord.js v14)
- *   Version avec configuration interactive (console)
+ *   Version variables d'environnement (Render / JustRunMyApp.com)
  * ========================================================
  *
- * Au premier démarrage, le script te demande directement dans
- * la console :
- *   - Bot Token
- *   - Application ID (Client ID)
- *   - Guild ID (ID de ton serveur WestJet)
- *   - Staff Role ID (rôle autorisé à gérer les codes/miles)
+ * Ce script lit sa configuration depuis les variables d'environnement
+ * (section "Environment" de ton hébergeur) :
+ *   - TOKEN           -> Bot Token
+ *   - CLIENT_ID       -> Application ID
+ *   - GUILD_ID        -> ID de ton serveur WestJet
+ *   - STAFF_ROLE_ID   -> ID du rôle autorisé à gérer les codes/miles
  *
- * Ces valeurs sont sauvegardées dans data/config.json, donc tu
- * n'as pas besoin de les retaper à chaque redémarrage (appuie sur
- * Entrée pour garder une valeur déjà enregistrée).
+ * La plupart des hébergeurs (Render, JustRunMyApp, Railway, etc.)
+ * n'offrent pas de console interactive où on peut taper une réponse :
+ * seules les variables d'environnement fonctionnent de façon fiable.
  *
  * Les commandes slash sont enregistrées automatiquement sur ton
- * serveur (Guild ID) à chaque démarrage, donc elles apparaissent
- * quasi instantanément dans Discord.
+ * serveur (GUILD_ID) à chaque démarrage.
  *
  * ========================================================
- *   INSTALLATION (sur JustRunMyApp.com ou en local)
+ *   INSTALLATION
  * ========================================================
- * 1. npm install
- * 2. Startup command : node index.js
- * 3. Regarde la console : elle va te poser les questions.
+ * 1. Build Command  : npm install
+ * 2. Start Command  : node index.js
+ * 3. Environment    : ajoute TOKEN, CLIENT_ID, GUILD_ID, STAFF_ROLE_ID
  * ========================================================
  */
 
@@ -47,14 +46,11 @@ const {
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
-const readline = require("readline/promises");
-const { stdin: input, stdout: output } = require("process");
 
 // ============== CHEMINS DE STOCKAGE ==============
 const DATA_DIR = path.join(__dirname, "data");
 const MILES_FILE = path.join(DATA_DIR, "miles.json");
 const CODES_FILE = path.join(DATA_DIR, "codes.json");
-const CONFIG_FILE = path.join(DATA_DIR, "config.json");
 const MAX_CODES_PER_GENERATION = 1000;
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
@@ -72,39 +68,34 @@ function saveJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
 }
 
-// ============== CONFIGURATION INTERACTIVE ==============
-async function askConfig() {
-  const saved = loadJson(CONFIG_FILE);
-  const rl = readline.createInterface({ input, output });
+// ============== CONFIGURATION (variables d'environnement) ==============
+function loadConfig() {
+  const TOKEN = process.env.TOKEN;
+  const CLIENT_ID = process.env.CLIENT_ID;
+  const GUILD_ID = process.env.GUILD_ID;
+  const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 
-  async function ask(question, key) {
-    const existing = saved[key];
-    const hint = existing ? ` [Entrée = garder la valeur enregistrée]` : "";
-    const answer = await rl.question(`${question}${hint}\n> `);
-    if (!answer.trim() && existing) return existing;
-    if (!answer.trim() && !existing) {
-      console.log("❌ Cette valeur est obligatoire.");
-      return ask(question, key);
-    }
-    return answer.trim();
+  const missing = [];
+  if (!TOKEN) missing.push("TOKEN");
+  if (!CLIENT_ID) missing.push("CLIENT_ID");
+  if (!GUILD_ID) missing.push("GUILD_ID");
+  if (!STAFF_ROLE_ID) missing.push("STAFF_ROLE_ID");
+
+  if (missing.length > 0) {
+    console.error("========================================");
+    console.error("❌ Variables d'environnement manquantes :");
+    missing.forEach((m) => console.error(`   - ${m}`));
+    console.error("");
+    console.error("Va dans la section 'Environment' de ton hébergeur et ajoute :");
+    console.error("   TOKEN=ton_bot_token");
+    console.error("   CLIENT_ID=ton_application_id");
+    console.error("   GUILD_ID=ton_guild_id");
+    console.error("   STAFF_ROLE_ID=ton_staff_role_id");
+    console.error("========================================");
+    process.exit(1);
   }
 
-  console.log("========================================");
-  console.log("   CONFIGURATION DU WESTJET MILES BOT");
-  console.log("========================================");
-
-  const TOKEN = await ask("Bot Token (Discord Developer Portal > Bot > Token) :", "TOKEN");
-  const CLIENT_ID = await ask("Application ID (Developer Portal > General Information) :", "CLIENT_ID");
-  const GUILD_ID = await ask("Guild ID (ID de ton serveur WestJet, clic droit > Copier l'ID) :", "GUILD_ID");
-  const STAFF_ROLE_ID = await ask("Staff Role ID (ID du rôle autorisé à gérer les codes/miles) :", "STAFF_ROLE_ID");
-
-  rl.close();
-
-  const config = { TOKEN, CLIENT_ID, GUILD_ID, STAFF_ROLE_ID };
-  saveJson(CONFIG_FILE, config);
-  console.log("✅ Configuration sauvegardée dans data/config.json\n");
-
-  return config;
+  return { TOKEN, CLIENT_ID, GUILD_ID, STAFF_ROLE_ID };
 }
 
 // ============== FONCTIONS MILES / CODES ==============
@@ -198,7 +189,7 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
 
 // ============== DÉMARRAGE ==============
 (async () => {
-  const { TOKEN, CLIENT_ID, GUILD_ID, STAFF_ROLE_ID } = await askConfig();
+  const { TOKEN, CLIENT_ID, GUILD_ID, STAFF_ROLE_ID } = loadConfig();
 
   try {
     await deployCommands(TOKEN, CLIENT_ID, GUILD_ID);
