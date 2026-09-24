@@ -40,12 +40,29 @@ const {
   TextInputStyle,
   AttachmentBuilder,
   PermissionFlagsBits,
+  MessageFlags,
   REST,
   Routes,
   SlashCommandBuilder,
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
+const http = require("http");
+
+// ============== SERVEUR HTTP FACTICE (pour Render) ==============
+// Render s'attend à ce qu'un "Web Service" écoute sur un port. Un bot
+// Discord n'en a pas besoin, donc on ouvre juste un petit serveur qui
+// répond "OK" pour que Render arrête de chercher un port et considère
+// le déploiement comme réussi.
+const PORT = process.env.PORT || 3000;
+http
+  .createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("WestJet Miles Bot is running.");
+  })
+  .listen(PORT, () => {
+    console.log(`🌐 Dummy HTTP server listening on port ${PORT} (for Render)`);
+  });
 
 // ============== CHEMINS DE STOCKAGE ==============
 const DATA_DIR = path.join(__dirname, "data");
@@ -216,7 +233,7 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
 
         if (commandName === "panel") {
           if (!isStaff(interaction, STAFF_ROLE_ID)) {
-            return interaction.reply({ content: "❌ You don't have permission to use this command.", ephemeral: true });
+            return interaction.reply({ content: "❌ You don't have permission to use this command.", flags: MessageFlags.Ephemeral });
           }
 
           const embed = new EmbedBuilder()
@@ -230,12 +247,12 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
             .setFooter({ text: "WestJet | Miles Program" });
 
           await interaction.channel.send({ embeds: [embed], components: [buildPanelRow()] });
-          return interaction.reply({ content: "✅ Panel posted.", ephemeral: true });
+          return interaction.reply({ content: "✅ Panel posted.", flags: MessageFlags.Ephemeral });
         }
 
         if (commandName === "generatecodes") {
           if (!isStaff(interaction, STAFF_ROLE_ID)) {
-            return interaction.reply({ content: "❌ You don't have permission to use this command.", ephemeral: true });
+            return interaction.reply({ content: "❌ You don't have permission to use this command.", flags: MessageFlags.Ephemeral });
           }
 
           const amount = interaction.options.getInteger("amount");
@@ -244,14 +261,14 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
           if (amount <= 0 || amount > MAX_CODES_PER_GENERATION) {
             return interaction.reply({
               content: `❌ Amount must be between 1 and ${MAX_CODES_PER_GENERATION}.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
           if (milesValue <= 0) {
-            return interaction.reply({ content: "❌ Miles value must be greater than 0.", ephemeral: true });
+            return interaction.reply({ content: "❌ Miles value must be greater than 0.", flags: MessageFlags.Ephemeral });
           }
 
-          await interaction.deferReply({ ephemeral: true });
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
           const codes = loadJson(CODES_FILE);
           const existingCodes = new Set(Object.keys(codes));
@@ -287,31 +304,31 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
 
         if (commandName === "addmiles") {
           if (!isStaff(interaction, STAFF_ROLE_ID)) {
-            return interaction.reply({ content: "❌ You don't have permission to use this command.", ephemeral: true });
+            return interaction.reply({ content: "❌ You don't have permission to use this command.", flags: MessageFlags.Ephemeral });
           }
           const user = interaction.options.getUser("user");
           const amount = interaction.options.getInteger("amount");
 
           if (amount <= 0) {
-            return interaction.reply({ content: "❌ Amount must be greater than 0.", ephemeral: true });
+            return interaction.reply({ content: "❌ Amount must be greater than 0.", flags: MessageFlags.Ephemeral });
           }
 
           const newTotal = addMiles(user.id, amount);
           return interaction.reply({
             content: `✅ Added **${amount} miles** to <@${user.id}>. New balance: **${newTotal} miles**.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (commandName === "removemiles") {
           if (!isStaff(interaction, STAFF_ROLE_ID)) {
-            return interaction.reply({ content: "❌ You don't have permission to use this command.", ephemeral: true });
+            return interaction.reply({ content: "❌ You don't have permission to use this command.", flags: MessageFlags.Ephemeral });
           }
           const user = interaction.options.getUser("user");
           const amount = interaction.options.getInteger("amount");
 
           if (amount <= 0) {
-            return interaction.reply({ content: "❌ Amount must be greater than 0.", ephemeral: true });
+            return interaction.reply({ content: "❌ Amount must be greater than 0.", flags: MessageFlags.Ephemeral });
           }
 
           let newTotal = addMiles(user.id, -amount);
@@ -324,13 +341,13 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
 
           return interaction.reply({
             content: `✅ Removed **${amount} miles** from <@${user.id}>. New balance: **${newTotal} miles**.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (commandName === "codestats") {
           if (!isStaff(interaction, STAFF_ROLE_ID)) {
-            return interaction.reply({ content: "❌ You don't have permission to use this command.", ephemeral: true });
+            return interaction.reply({ content: "❌ You don't have permission to use this command.", flags: MessageFlags.Ephemeral });
           }
           const codes = loadJson(CODES_FILE);
           const total = Object.keys(codes).length;
@@ -339,13 +356,13 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
 
           return interaction.reply({
             content: `📊 **Code Stats**\nTotal: ${total}\nUsed: ${used}\nRemaining: ${remaining}`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (commandName === "mymiles") {
           const balance = getMiles(interaction.user.id);
-          return interaction.reply({ content: `✈️ You currently have **${balance} miles**.`, ephemeral: true });
+          return interaction.reply({ content: `✈️ You currently have **${balance} miles**.`, flags: MessageFlags.Ephemeral });
         }
       }
 
@@ -353,7 +370,7 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
       if (interaction.isButton()) {
         if (interaction.customId === "westjet_check_miles") {
           const balance = getMiles(interaction.user.id);
-          return interaction.reply({ content: `✈️ You currently have **${balance} miles**.`, ephemeral: true });
+          return interaction.reply({ content: `✈️ You currently have **${balance} miles**.`, flags: MessageFlags.Ephemeral });
         }
 
         if (interaction.customId === "westjet_redeem_miles") {
@@ -379,12 +396,12 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
         const codes = loadJson(CODES_FILE);
 
         if (!codes[enteredCode]) {
-          return interaction.reply({ content: "❌ This code is invalid.", ephemeral: true });
+          return interaction.reply({ content: "❌ This code is invalid.", flags: MessageFlags.Ephemeral });
         }
 
         const codeData = codes[enteredCode];
         if (codeData.used) {
-          return interaction.reply({ content: "⚠️ This code has already been redeemed.", ephemeral: true });
+          return interaction.reply({ content: "⚠️ This code has already been redeemed.", flags: MessageFlags.Ephemeral });
         }
 
         const milesValue = codeData.miles || 0;
@@ -400,13 +417,13 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
             `✅ Code redeemed successfully!\n` +
             `You received **${milesValue} miles**.\n` +
             `Your new balance: **${newTotal} miles**.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     } catch (err) {
       console.error(err);
       if (interaction.isRepliable()) {
-        const errorPayload = { content: "❌ An error occurred.", ephemeral: true };
+        const errorPayload = { content: "❌ An error occurred.", flags: MessageFlags.Ephemeral };
         if (interaction.deferred || interaction.replied) {
           interaction.editReply(errorPayload).catch(() => {});
         } else {
