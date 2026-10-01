@@ -435,3 +435,5 @@ async function deployCommands(TOKEN, CLIENT_ID, GUILD_ID) {
 
   client.login(TOKEN);
 })();
+
+require("./shop.js");
